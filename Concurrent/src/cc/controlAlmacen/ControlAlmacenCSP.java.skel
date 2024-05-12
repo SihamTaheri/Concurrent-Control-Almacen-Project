@@ -1,0 +1,359 @@
+package cc.controlAlmacen;
+
+// paso de mensajes con JCSP
+import org.jcsp.lang.*;
+
+// 
+// 
+// TODO: otros imports
+// 
+// 
+
+
+public class ControlAlmacenCSP implements ControlAlmacen, CSProcess {
+
+    // algunas constantes de utilidad
+    static final int PRE_KO  = -1;
+    static final int NOSTOCK =  0;
+    static final int STOCKOK =  1;
+    static final int SUCCESS =  0;
+    // TODO: añadid las que creáis convenientes
+    
+    // canales para comunicación con el servidor
+    private final Any2OneChannel chComprar            = Channel.any2one();
+    private final Any2OneChannel chEntregar           = Channel.any2one();
+    private final Any2OneChannel chDevolver           = Channel.any2one();
+    private final Any2OneChannel chOfrecerReabastecer = Channel.any2one();
+    private final Any2OneChannel chReabastecer        = Channel.any2one();
+
+    // Resource state --> server side !!
+
+    // peticiones de comprar
+    private static class PetComprar {
+	public String productId;
+	public int    q;
+	public One2OneChannel chresp;
+
+	PetComprar (String productId, int q) {
+	    this.productId = productId;
+	    this.q         = q;
+	    this.chresp = Channel.one2one();
+	}
+    }
+
+    // peticiones de entregar
+    private static class PetEntregar {
+	// 
+	// 
+	// 
+	//
+	// TODO: completar
+	// 
+	// 
+	// 
+	// 
+    }
+
+    // peticiones de devolver
+    private static class PetDevolver {
+	// 
+	// 
+	// 
+	//
+	// TODO: completar
+	// 
+	// 
+	// 
+	// 
+    }
+
+    // para aplazar peticiones de ofrecerReabastecer
+    private static class PetOfrecerReabastecer {
+	// 
+	// 
+	// 
+	//
+	// TODO: completar
+	// 
+	// 
+	// 
+	// 
+    }
+
+    // peticiones de reabastecer
+    private static class PetReabastecer {
+	// 
+	// 
+	// 
+	//
+	// TODO: completar
+	// 
+	// 
+	// 
+	// 
+    }
+    
+    // INTERFAZ ALMACEN
+    public boolean comprar(String clientId, String itemId, int cantidad) {
+
+	// petición al servidor
+	PetComprar pet = new PetComprar(itemId,cantidad);
+	chComprar.out().write(pet);
+	
+      	// recibimos contestación del servidor
+	// puede ser una de {PRE_KO, NOSTOCK, STOCKOK}
+	int respuesta = (Integer)pet.chresp.in().read();
+
+	// no se cumple PRE:
+	if (respuesta == PRE_KO)
+	    throw new IllegalArgumentException();
+	// se cumple PRE:
+	return (respuesta == STOCKOK);
+    }
+
+    public void entregar(String clientId, String itemId, int cantidad) {
+	// 
+	// 
+	// 
+	
+	// 
+	// TODO: completar
+	// 
+
+	// 
+	// 
+	// 
+    }
+
+    public void devolver(String clientId, String itemId, int cantidad) {
+	
+	// 
+	// 
+	// 
+		
+	// 
+	// TODO: completar
+	// 
+	
+	// 
+	// 
+	// 
+    }
+
+    public void ofrecerReabastecer(String itemId, int cantidad) {
+	// 
+	// 
+	// 
+	
+	// 
+	// 
+	// TODO: completar
+
+	// 
+	// 
+	// 
+
+	// 
+	// 
+	// 
+    }
+    
+    public void reabastecer(String itemId, int cantidad) {
+	// 
+	// 
+	// 
+
+	// 
+	// TODO: completar
+
+	// 
+	// 
+	// 
+    }
+	
+    // atributos de la clase
+    Map<String,Integer> tipoProductos; // stock mínimo para cada producto
+
+    public ControlAlmacenCSP(Map<String,Integer> tipoProductos) {
+	this.tipoProductos = tipoProductos;
+	new ProcessManager(this).start(); // al crearse el servidor también se arranca...
+    }
+
+    
+// SERVIDOR
+    public void run() {
+
+	// para recepción alternativa condicional
+	Guard[] entradas = {
+	    chComprar.in(),
+	    chEntregar.in(),
+	    chDevolver.in(),
+	    chOfrecerReabastecer.in(),
+	    chReabastecer.in()
+	};
+	Alternative servicios =  new Alternative (entradas);
+	// OJO ORDEN!!
+	final int COMPRAR             = 0;
+	final int ENTREGAR            = 1;
+	final int DEVOLVER            = 2;
+	final int OFRECER_REABASTECER = 3;
+	final int REABASTECER         = 4;
+	// condiciones de recepción: todas a CIERTO
+
+	// estado del recurso
+	// TODO: vuestra estructura de datos traída de monitores
+	
+	// TODO: estructuras aux. para peticiones aplazadas
+	// entregar
+	// TODO: completar
+	
+	// ofrecerReabastecer
+	// 
+	// TODO: completar 
+	// 
+
+	// inicializaciones
+	// 
+	// 
+	// TODO: completar
+	// 
+	// 
+	// 
+    
+	// bucle de servicio
+	while (true) {
+	    // vars. auxiliares
+	    // tipo de la última petición atendida
+	    int choice = -1; // una de {COMPRAR, ENTREGAR, DEVOLVER, OFRECER_REABASTECER, REABASTECER}
+
+	    // todas las peticiones incluyen un producto y una cantidad
+	    MyItem item  = new MyItem(99999);
+	    String pid   = "";
+	    int cantidad = -1;
+
+	    choice = servicios.fairSelect();
+	    switch (choice) {
+	    case COMPRAR: // CPRE = Cierto
+		PetComprar petC = (PetComprar)chComprar.in().read();
+		// comprobar PRE:
+		// ** CÓDIGO ORIENTATIVO!! ADAPTAD A VUESTRA ESTRUCTURA DE DATOS!! **
+		pid = petC.productId;
+		item = items.get(pid);
+		cantidad = petC.q;
+		if (cantidad < 1 || item == null) { // PRE_KO
+		    petC.chresp.out().write(PRE_KO);
+		} else { // PRE_OK 
+		    boolean result = item.disponibles + item.enCamino >= cantidad + item.comprados;
+		    if (result) { // hay stock suficiente
+			item.comprados += cantidad; 
+			petC.chresp.out().write(STOCKOK);
+		    } else { // no hay stock suficiente
+			petC.chresp.out().write(NOSTOCK);
+		    }
+		}
+		break;
+	    case ENTREGAR: // CPRE en diferido
+		// 
+		// 
+		// 
+		// 
+		// 
+		// 
+		// 
+		// 
+		// 
+		// TODO: completar
+		// 
+		// 
+		// 
+		// 
+		// 
+		// 
+		// 
+		// 
+		break;
+	    case DEVOLVER: // CPRE = Cierto
+		// 
+		// 
+		// 
+		// 
+		// 
+		// TODO: completar
+		// 
+		// 
+		// 
+		// 
+		// 
+		break;
+	    case OFRECER_REABASTECER: // CPRE en diferido
+		// 
+		// 
+		// 
+		// 
+		// 
+		// 
+		// TODO: completar
+		// 
+		// 
+		// 
+		// 
+		// 
+		// 
+		break;
+	    case REABASTECER: // CPRE = Cierto
+		// 
+		// 
+		// 
+		// 
+		// 
+		// TODO: completar
+		// 
+		// 
+		// 
+		// 
+		// 
+		break;
+	    } // switch
+
+	    // tratamiento de peticiones aplazadas
+	    	    
+	    // peticiones de entregar
+	    // 
+	    // 
+	    // 
+	    // 
+	    // 
+	    // 
+	    // 
+	    // 
+	    // TODO: completar
+	    // 
+	    // 
+	    // 
+	    // 
+	    // 
+	    // 
+	    // 
+	    // 
+	    // 
+
+	    // peticiones de ofrecer reabastecer
+	    // 
+	    // 
+	    // 
+	    // TODO: completar
+	    // 
+	    // 
+	    // 
+	    // asegurar que no quedan peticiones aplazadas
+	    // que podrian ser atendidas!!!!!!!!!!!!!!!!!!
+	    	    
+	} // bucle servicio
+    } // run SERVER
+
+    // Clases auxiliares
+    //
+    // TODO: traed de vuestra sol. por monitores
+    //
+    
+}
